@@ -1,1 +1,94 @@
+Jag förstår – du vill ha kvar din ursprungliga text **nästan som den är**, men med de förbättringar jag föreslog *inbakade*, inte omskriven till en helt ny version.
+Här är den justerade versionen där jag endast lagt in:
 
+* små språkjusteringar,
+* konsekvens-sektion,
+* extra tydlighet på vissa punkter.
+
+---
+
+# A01:2021 – Broken Access Control
+
+### Access Control – Säkerhetspolicy
+
+**Principen om minsta privilegium** eller **nekad åtkomst som standard (deny by default)**
+Betyder att åtkomst endast bör beviljas för specifika funktioner, roller eller användare.
+
+### Access Control – Praktisk beskrivning
+
+Åtkomstkontroll (Access Control) upprätthåller säkerhetspolicyn så att användare inte kan agera utanför sina avsedda behörigheter.
+
+### Beskrivning Broken Access Control kortfattat
+
+Bristfällig åtkomstkontroll, t.ex. när användare kan komma åt data eller funktioner som de inte borde.
+
+---
+
+## Vanliga exempel – Broken Access Control
+
+* **Överträdelse av principen om minsta privilegium eller deny by default**
+  All data och funktioner är tillgängliga för alla.
+
+* **Kringgående av åtkomstkontroll**
+  Genom att modifiera URL (parameter tampering, force browsing), interna applikations­tillstånd, HTML-sidan, eller genom att använda attackverktyg som manipulerar API-förfrågningar.
+
+* **Force browsing (tvingad navigering)**
+  I praktiken: En angripare försöker få åtkomst till kataloger, filer eller resurser som inte ska vara publikt tillgängliga genom att skriva in URL\:en manuellt.
+
+* **Internal Application State**
+  Refererar till data och variabler inom applikationen som spårar nuvarande tillstånd och användarspecifik information.
+
+* **API Request**
+  Ett samtal mellan klienten och servern för att få åtkomst, modifiera eller interagera med resurser. Om åtkomstkontroller saknas för POST-, PUT- eller DELETE-anrop kan obehöriga:
+
+  * **POST (skapa data):** Skapa nya konton eller poster i databasen.
+  * **PUT (uppdatera data):** Ändra andra användares information (t.ex. lösenord, adresser).
+  * **DELETE (radera data):** Ta bort andra användares konton eller filer.
+
+* **IDOR (Insecure Direct Object References)**
+  Att tillåta visning/redigering av någon annans konto genom att manipulera en unik identifierare.
+  → En webbapplikationssårbarhet där interna objekt-ID (t.ex. databasnycklar eller filsökvägar) exponeras utan korrekta behörighetskontroller. Angripare kan då komma åt eller ändra data de inte borde.
+
+* **Privilegieförhöjning (Privilege Escalation)**
+  Agera som en användare utan att vara inloggad, eller agera som admin trots att man endast är inloggad som standardanvändare.
+
+* **Metadata-manipulation**
+  T.ex. återanvändning eller manipulation av en JWT-token, cookie eller dolda fält.
+  Praktiska exempel:
+
+  * **Replay-attack:** Återanvändning av en giltig token/cookie för fortsatt åtkomst även efter utloggning.
+  * **Token-manipulation:** Ändra en JWT (t.ex. `"role":"user"` → `"role":"admin"`) för att höja privilegier.
+  * **Hidden fields:** Ändra dolda fält (t.ex. `isAdmin=false` → `isAdmin=true`) för att få admin-rättigheter.
+  * **JWT-invalidation abuse:** Fortsatt användning av token p.g.a. felaktig hantering av ogiltigförklaring.
+
+* **CORS-miskonfiguration**
+  I praktiken: API\:et accepterar förfrågningar från otillåtna domäner. Detta kan göra att obehöriga webbplatser kan prata direkt med API\:t via offrets webbläsare, vilket kan leda till dataläckage eller kontokapning.
+
+---
+
+## Konsekvenser av Broken Access Control
+
+* Obehörig åtkomst till känslig information.
+* Ändring eller radering av kritiska data.
+* Övertagande av användarkonton.
+* Angripare kan få administratörsrättigheter och i värsta fall fullständig kontroll över systemet.
+
+---
+
+## Hur man förebygger
+
+* Förutom publika resurser: **neka som standard**.
+* Implementera åtkomstkontrollmekanismer en gång och återanvänd i hela applikationen. Minimera CORS-användning.
+* Åtkomstkontroller ska validera **ägarskap av poster** istället för att anta att användaren får CRUD\:a all data.
+* Upprätthåll unika affärsbegränsningar via domänmodeller.
+* Inaktivera kataloglistning och ta bort `.git` och backupfiler från webbroten.
+* Logga åtkomstkontrollfel och larma vid upprepade misslyckanden.
+* Använd **rate limiting** för att minska skada från automatiserade attacker.
+* Sessions- och tokenhantering:
+
+  * Invalidera *stateful* sessioner vid utloggning.
+  * Använd kortlivade *stateless JWT-tokens*.
+  * Följ OAuth-standarder för återkallande av långlivade tokens.
+* Utvecklare och QA bör inkludera funktionella access control-tester samt enhets- och integrationstester.
+
+---
