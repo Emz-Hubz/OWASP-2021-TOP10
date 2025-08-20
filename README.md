@@ -1,2 +1,4 @@
 # OWASP-2021-TOP10
-owasp(2021)-top10
+Praktisk och pedagogisk beskrivning utav OWASP(2021) Top 10 sårbarheterna.
+
+Under pågående arbete.
