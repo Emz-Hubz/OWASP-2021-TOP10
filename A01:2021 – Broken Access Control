@@ -1,84 +1,74 @@
 A01:2021 – Broken Access Control
 
 Access Control – Säkerhetspolicy
-
-*Principen om minsta privilegium* eller *nekad åtkomst som standard (deny by default)*
-Betyder att åtkomst endast bör beviljas för specifika funktioner, roller eller användare.
+Principen om minsta privilegium eller nekad åtkomst som standard (deny by default).
+Det betyder att åtkomst endast ska beviljas för specifika funktioner, roller eller användare.
 
 Access Control – Praktisk beskrivning
-
 Åtkomstkontroll (Access Control) upprätthåller säkerhetspolicyn så att användare inte kan agera utanför sina avsedda behörigheter.
 
-Beskrivning Broken Access Control kortfattat
+Beskrivning Broken Access Control (kortfattat)
+Bristfällig åtkomstkontroll innebär att användare kan komma åt data eller funktioner som de inte borde ha tillgång till.
 
-Bristfällig åtkomstkontroll, t.ex. när användare kan komma åt data eller funktioner som de inte borde.
+Vanligaexempel – Broken Access Control
+    • Överträdelse av principen om minsta privilegium eller deny by default
+    All data och funktioner är tillgängliga för alla.
+    • Kringgående av åtkomstkontroll genom att modifiera URL:er (parameter tampering, force browsing), interna applikationstillstånd, HTML-sidan eller genom att använda attackverktyg som manipulerar API-förfrågningar.
 
+I praktiken:
+    • Force browsing: Angriparen försöker få åtkomst till kataloger, filer eller andra resurser som inte ska vara publikt tillgängliga.
+    • Internal application state: Refererar till data och variabler inom applikationen som spårar nuvarande tillstånd och användarspecifik information.
+    • API request: Ett samtal mellan klienten och servern för att komma åt, modifiera eller interagera med resurser. Det är i praktiken ett sätt för olika mjukvarukomponenter att kommunicera. Klienten specificerar vad den behöver; servern bearbetar förfrågan och skickar tillbaka ett svar.
 
+    • IDOR (Insecure Direct Object References)
+Tillåta visning eller redigering av någon annans konto genom att ange dess unika identifierare.
+IDOR uppstår när en applikation exponerar interna objektidentifierare (t.ex. databasnycklar eller filsökvägar) för användare utan korrekta åtkomstkontroller. Detta kan möjliggöra obehörig åtkomst eller manipulation av data, såsom andra användares information eller filer.
 
-Vanliga exempel – Broken Access Control
+    • API utan åtkomstkontroller för POST, PUT och DELETE
+I praktiken:
+API:et låter vem som helst skicka ändrande eller destruktiva förfrågningar utan att kontrollera behörighet.
+    • POST (skapa data): En obehörig användare kan skapa nya användarkonton eller poster i databasen.
+    • PUT (uppdatera data): En angripare kan ändra andras information, t.ex. byta lösenord eller adresser.
+    • DELETE (ta bort data): Någon kan radera poster eller filer, exempelvis andra användares konton eller uppladdade dokument.
 
-* *Överträdelse av principen om minsta privilegium eller deny by default*
-  All data och funktioner är tillgängliga för alla.
+    • Privilegieförhöjning (Privilege Escalation)
+Agera som en användare utan att vara inloggad, eller agera som administratör trots att man endast är inloggad som vanlig användare.
 
-* *Kringgående av åtkomstkontroll*
-  Genom att modifiera URL (parameter tampering, force browsing), interna applikations­tillstånd, HTML-sidan, eller genom att använda attackverktyg som manipulerar API-förfrågningar.
+    • Metadata-manipulation
+Exempelvis att återanvända eller manipulera en JWT-token, cookie eller dolt fält för att höja behörigheter eller missbruka brister i JWT-ogiltigförklaring.
+Praktiska exempel:
+    • Replay-attack: En angripare fångar upp en giltig JWT-token eller cookie och skickar den igen för åtkomst, även om den inte längre borde vara giltig (t.ex. efter utloggning).
+    • Token-manipulation: Om en JWT är dåligt signerad eller använder svag kryptering kan angriparen ändra innehållet (t.ex. "role": "user" → "role": "admin") för att få högre behörighet.
+    • Manipulerade dolda fält: Ett formulärfält som isAdmin=false kan ändras till isAdmin=true. Om det inte kontrolleras på serversidan kan angriparen få administratörsrättigheter.
+    • JWT-invalidation abuse: Om systemet inte hanterar utloggning eller ogiltigförklaring korrekt kan en angripare fortsätta använda en token även efter att användaren loggat ut eller bytt lösenord.
 
-* *Force browsing (tvingad navigering)*
-  I praktiken: En angripare försöker få åtkomst till kataloger, filer eller resurser som inte ska vara publikt tillgängliga genom att skriva in URL\:en manuellt.
+    • CORS-miskonfiguration
+Detta kan tillåta API-åtkomst från obehöriga eller otillförlitliga ursprung.
+I praktiken:
+En felaktig CORS-inställning gör att API:et accepterar förfrågningar från webbplatser som inte borde ha åtkomst. Detta gör att obehöriga webbplatser kan kommunicera direkt med API:t via offrets webbläsare, vilket kan leda till dataläckage eller kontokapning.
+CORS (Cross-Origin Resource Sharing):
+En säkerhetsmekanism i webbläsare som styr hur en webbsida får göra förfrågningar till resurser (t.ex. API:er) på en annan domän.
+    • Exempel: Du besöker https://minbank.se som använder ett API på https://api.minbank.se.
+CORS-regeln måste uttryckligen tillåta förfrågningar från https://minbank.se.
+Om en helt annan sida (https://hacker.com) försöker anropa API:t ska detta blockeras av webbläsaren.
 
-* *Internal Application State*
-  Refererar till data och variabler inom applikationen som spårar nuvarande tillstånd och användarspecifik information.
-
-* *API Request*
-  Ett samtal mellan klienten och servern för att få åtkomst, modifiera eller interagera med resurser. Om åtkomstkontroller saknas för POST-, PUT- eller DELETE-anrop kan obehöriga:
-
-  * *POST (skapa data):* Skapa nya konton eller poster i databasen.
-  * *PUT (uppdatera data):* Ändra andra användares information (t.ex. lösenord, adresser).
-  * *DELETE (radera data):* Ta bort andra användares konton eller filer.
-
-* *IDOR (Insecure Direct Object References)*
-  Att tillåta visning/redigering av någon annans konto genom att manipulera en unik identifierare.
-  En webbapplikationssårbarhet där interna objekt-ID (t.ex. databasnycklar eller filsökvägar) exponeras utan korrekta behörighetskontroller. Angripare kan då komma åt eller ändra data de inte borde.
-
-* *Privilegieförhöjning (Privilege Escalation)*
-  Agera som en användare utan att vara inloggad, eller agera som admin trots att man endast är inloggad som standardanvändare.
-
-* *Metadata-manipulation*
-  T.ex. återanvändning eller manipulation av en JWT-token, cookie eller dolda fält.
-  Praktiska exempel:
-
-  * *Replay-attack:* Återanvändning av en giltig token/cookie för fortsatt åtkomst även efter utloggning.
-  * *Token-manipulation:* Ändra en JWT (t.ex. `"role":"user"` → `"role":"admin"`) för att höja privilegier.
-  * *Hidden fields:* Ändra dolda fält (t.ex. `isAdmin=false` → `isAdmin=true`) för att få admin-rättigheter.
-  * *JWT-invalidation abuse:* Fortsatt användning av token p.g.a. felaktig hantering av ogiltigförklaring.
-
-* *CORS-miskonfiguration*
-  I praktiken: API\:et accepterar förfrågningar från otillåtna domäner. Detta kan göra att obehöriga webbplatser kan prata direkt med API\:t via offrets webbläsare, vilket kan leda till dataläckage eller kontokapning.
-
-
-Konsekvenser av Broken Access Control
-
-* Obehörig åtkomst till känslig information.
-* Ändring eller radering av kritiska data.
-* Övertagande av användarkonton.
-* Angripare kan få administratörsrättigheter och i värsta fall fullständig kontroll över systemet.
-
+    • Force browsing (tvingad navigering)
+Försök att direkt nå autentiserade sidor som en oinloggad användare eller privilegierade sidor som en standardanvändare.
+Exempel:
+En sida som https://systemet.se/admin/dashboard ska endast vara tillgänglig för administratörer.
+En vanlig användare eller helt oinloggad besökare skriver in URL:en manuellt. Om serversidans åtkomstkontroller är bristfälliga kan användaren ändå komma åt sidan.
 
 Hur man förebygger
-
-* Förutom publika resurser: **neka som standard**.
-* Implementera åtkomstkontrollmekanismer en gång och återanvänd i hela applikationen. Minimera CORS-användning.
-* Åtkomstkontroller ska validera **ägarskap av poster* istället för att anta att användaren får CRUD\:a all data.
-* Upprätthåll unika affärsbegränsningar via domänmodeller.
-* Inaktivera kataloglistning och ta bort `.git` och backupfiler från webbroten.
-* Logga åtkomstkontrollfel och larma vid upprepade misslyckanden.
-* Använd *rate limiting* för att minska skada från automatiserade attacker.
-* Sessions- och tokenhantering:
-
-  * Invalidera *stateful* sessioner vid utloggning.
-  * Använd kortlivade *stateless JWT-tokens*.
-  * Följ OAuth-standarder för återkallande av långlivade tokens.
-* Utvecklare och QA bör inkludera funktionella access control-tester samt enhets- och integrationstester.
+Åtkomstkontroll är endast effektiv i betrodd server-side-kod eller serverlösa API:er, där angriparen inte kan ändra åtkomstkontroller eller metadata.
+    • Förutom publika resurser: neka som standard (deny by default).
+    • Implementera åtkomstkontrollmekanismer en gång och återanvänd dem i hela applikationen, inklusive att minimera användningen av CORS.
+    • Åtkomstkontroller bör säkerställa ägarskap av poster i stället för att tillåta att användaren kan skapa, läsa, uppdatera eller ta bort vilken post som helst.
+    • Unika affärsbegränsningar bör upprätthållas av domänmodeller.
+    • Inaktivera kataloglistning på webbservern och säkerställ att filmetadata (t.ex. .git) och backupfiler inte finns i webbroten.
+    • Logga åtkomstkontrollfel och larma administratörer när det är lämpligt (t.ex. vid upprepade misslyckanden).
+    • Begränsa API- och controller-åtkomsthastighet (rate limiting) för att minimera skada från automatiserade attacker.
+    • Stateful sessions-ID:n bör ogiltigförklaras på serversidan efter utloggning. Stateless JWT-tokens bör vara kortlivade för att minimera angriparens tidsfönster. För långlivade JWT-tokens bör OAuth-standarder användas för att kunna återkalla åtkomst.
+    • Utvecklare och QA-personal bör inkludera funktionella åtkomstkontrolltester samt enhets- och integrationstester.
 
 List of Mapped CWEs
 
