@@ -1,1 +1,177 @@
+A02:2021 – Cryptographic Failures
 
+Översikt 
+Det första steget är att fastställa skyddsbehoven för data under överföring och i vila. Till exempel kräver lösenord, kreditkortsnummer, journaler, personuppgifter och affärshemligheter extra skydd, särskilt om dessa data faller under integritetslagar (t.ex. EU:s dataskyddsförordning, GDPR) eller andra regelverk (t.ex. skydd av finansiella data såsom PCI DSS).
+För all sådan data:
+Överförs någon data i klartext? Detta är problematiskt för protokoll som HTTP, SMTP och FTP, även när de förlitar sig på TLS‑uppgraderingar som STARTTLS. Extern internettrafik är riskfylld. Verifiera även all intern trafik, t.ex. mellan lastbalanserare (load balancers), webbservrar eller backend‑system.
+
+Praktiskt exempel:
+Om data överförs i klartext innebär det att informationen som skickas kan läsas av vem som helst. Dessutom finns en stor risk för en man‑in‑the‑middle‑attack (MitM), där angriparen i hemlighet kan läsa kommunikationen mellan klient och server, eller mellan e‑postkorrespondenter (SMTP). Angriparen kan även modifiera meddelanden i e‑postkonversationen.
+Fler kända exempel på MitM‑attacker:
+    • Wi‑Fi eavesdropping: En angripare sätter upp en skadlig Wi‑Fi‑hotspot och namnger den med ett legitimt namn för att lura användare att ansluta, och kan därefter avlyssna/fånga upp nätverkstrafiken.
+    • DNS spoofing: Angriparen förändrar DNS‑poster för att styra användaren till en falsk webbplats som liknar den legitima, vilket möjliggör stöld av inloggningsuppgifter eller annan information.
+    • HTTPS‑spoofing/SSL‑downgrade: Angriparen fångar upp trafiken och tvingar en okrypterad HTTP‑anslutning i stället för säker HTTPS, vilket exponerar data i klartext.
+    • Session hijacking: Angriparen stjäl en sessionscookie för att utge sig för att vara en användare och få åtkomst till dennes konto.
+
+Finns det gamla/svaga kryptografiska algoritmer eller protokoll som standard eller i äldre kod?
+Exempel:
+    • Användning av MD5 eller SHA‑1 (hashfunktioner kända för kollisionssårbarheter). Detta underlättar knäckning av hashade lösenord (t.ex. via rainbow tables) och kan i praktiken leda till åtkomst av lösenord i klartext.
+    • Användning av äldre TLS/SSL‑versioner (< TLS 1.2), som innehåller kända sårbarheter.
+    • TLS: Tillhandahåller ett sätt att kapsla klartextprotokoll i ett krypterat lager och möjliggör ömsesidig autentisering (mTLS).
+    • mTLS: I TLS kan både klient och server presentera certifikat. Detta kallas mutual TLS eller klientcertifikatsautentisering och kan användas i stället för användarnamn/lösenord. Applikationen kan hämta användarens identitet från certifikatet (t.ex. CN/SAN).
+    • SSL: Äldre föregångare till TLS som kapslar in klartext i ett krypterat lager ovanpå TCP (t.ex. för HTTP och SMTP).
+
+Används standardkryptonycklar? Genereras eller återanvänds svaga nycklar? Saknas korrekt nyckelhantering eller rotation? Har kryptonycklar lagts in i källkodsförråd?
+
+Exempel:
+    • Standardnycklar (default keys): Många system och bibliotek levereras med standardnycklar för test/snabbinstallation. Om dessa inte byts ut kan alla som känner till standardnyckeln dekryptera data. I ett IoT‑system med samma hårdkodade AES‑nyckel på alla enheter kan en angripare som knäcker en enhet sedan avlyssna all trafik.
+    • Svaga nycklar: För korta (t.ex. 56‑bitars DES), förutsägbara eller baserade på dålig slumpmässighet.
+    • Återanvända nycklar: Samma nyckel används för många olika ändamål eller under för lång tid. Konsekvens: Angriparen kan knäcka krypteringen med brute force eller återanvända en stulen nyckel i flera attacker.
+    • Bristande nyckelrotation: Nycklar bör bytas regelbundet. Om en nyckel har läckt och rotationen är dålig kan angriparen ha långvarig åtkomst till känslig data.
+        ◦ Exempel: En databas dumpades för flera månader sedan, men samma krypteringsnyckel används fortfarande. Angriparen kan då dekryptera ny data.
+    • Nycklar i källkodsförråd: Om utvecklare checkar in hemliga nycklar i GitHub/GitLab blir de ofta publikt åtkomliga. Angripare kan söka efter nycklar och direkt använda dem för att logga in, dekryptera data eller manipulera tjänster.
+        ◦ Exempel: Ett AWS access key/secret key‑par ligger i en commit – angriparen får full åtkomst till molnmiljön.
+
+Är kryptering ett uttryckligt krav? Saknas säkerhetsrelaterade HTTP‑rubriker (headers) i webbläsaren?
+Tydligare beskrivning:
+Finns det något i applikationen som säkerställer att kryptering alltid används, t.ex. via säkerhetsrelaterade HTTP‑rubriker? Om dessa saknas kan data skickas okrypterat, eller så blir applikationen mer sårbar.
+Exempel på viktiga rubriker:
+    • Strict‑Transport‑Security (HSTS): Tvingar webbläsaren att alltid använda HTTPS.
+    • Content‑Security‑Policy (CSP): Kontrollerar vilka resurser som får laddas (minskar XSS‑risk).
+    • X‑Content‑Type‑Options: Förhindrar att webbläsaren gissar filtyper (skydd mot MIME‑sniffing).
+    • X‑Frame‑Options / frame‑ancestors (CSP): Skyddar mot clickjacking.
+Om dessa rubriker saknas kan trafik ske över okrypterad HTTP, eller webbläsaren agera osäkert.
+
+Valideras det mottagna servercertifikatet och förtroendekedjan korrekt?
+Beskrivning:
+Är serverns certifikat signerat av en betrodd CA (Certificate Authority)? Följs hela X.509‑certifikatkedjan (servercertifikat → mellanliggande CA → rot‑CA)? Säkerställ att klienten inte accepterar självsignerade eller ogiltiga certifikat utan tydlig varning.
+Kort sagt: Certifikatet ska vara äkta, omöjligt att manipulera och utfärdat av en betrodd CA.
+
+Är initialiseringsvektorer (IV) ignorerade, återanvända eller inte tillräckligt säkert genererade för det valda kryptografiska driftläget? Används ett osäkert driftläge som ECB? Används enbart kryptering där autentiserad kryptering är mer lämplig?
+
+Beskrivning:
+En initialiseringsvektor (IV) är slumpdata som används vid kryptering för att se till att samma klartext inte ger samma ciphertext (undviker mönster). Om IV ignoreras eller återanvänds blir mönster synliga i den krypterade datan. Angripare kan då jämföra två krypterade meddelanden och avgöra om de innehåller samma innehåll.
+    • Osäkert driftläge – ECB (Electronic Codebook): Delar upp meddelanden i block och krypterar varje block separat utan att blanda dem. Identiska block blir identiskt krypterade, vilket avslöjar mönster.
+        ◦ Exempel: Krypterade bilder eller dokument i ECB kan fortfarande läcka struktur (t.ex. mallar).
+    • Autentiserad kryptering vs. ”vanlig” kryptering: Vanlig kryptering skyddar konfidentialitet (att ingen kan läsa data). Autentiserad kryptering (t.ex. AES‑GCM, ChaCha20‑Poly1305) skyddar även integritet (att data inte kan manipuleras obemärkt).
+        ◦ Om man bara använder ”vanlig” kryptering kan en angripare ändra ciphertext och ibland påverka den dekrypterade texten utan att det upptäcks.
+        ◦ Exempel: Angriparen manipulerar ett krypterat bankmeddelande (t.ex. ändrar belopp). Med autentiserad kryptering skulle mottagaren upptäcka manipulationen och avvisa meddelandet.
+
+Används lösenord som kryptonycklar utan en lösenordsbaserad nyckelderiveringsfunktion (KDF)?
+
+En nyckelderiveringsfunktion omvandlar ett lösenord till en stark nyckel med korrekt längd och entropi (ofta med salt och iterationer), t.ex. PBKDF2, bcrypt, scrypt, Argon2.
+Detta bör granskas i koden:
+Lösenord får inte användas direkt som krypteringsnyckel eller lagras i klartext. Använd KDF för att härleda nycklar och lagra lösenord som saltade, adaptiva hashar.
+      
+Har slumpgenerering använts för kryptografiska syften som inte var designad för att uppfylla kryptografiska krav?
+
+Även om rätt funktion används: behöver den seedas av utvecklaren? Om inte – har utvecklaren då skrivit över den starka inbyggda seed‑funktionen med en svag seed (låg entropi/oförutsägbarhet)?
+Seed: Ett startvärde som initierar en slumpgenerator (PRNG). En dålig seed (t.ex. ”1234”) gör alla värden förutsägbara.
+Entropi: Ett mått på slumpmässighet/oförutsägbarhet. Hög entropi = svårt att gissa.
+Praktisk beskrivning:
+I kryptografi används slump bl.a. för att generera nycklar, tokens och sessions‑ID. Om slumpen inte är tillräckligt stark, kan en angripare gissa värdena.
+    • Exempel (fel): Använda en vanlig slumpgenerator (t.ex. rand() i C eller random i Python) för kryptonycklar – dessa är inte designade för kryptografi.
+    • Seeding: Kryptosäkra generatorer ska använda starka källor (t.ex. systementropi). Om utvecklaren själv sätter en enkel seed, t.ex. random.seed(1234), blir ”slumpen” förutsägbar.
+Konsekvens i praktiken:
+    • En session‑token eller API‑nyckel som ser slumpmässig ut kan i själva verket gissas.
+    • Kryptonycklar kan återställas om seedningen var svag.
+    • Exempel: Lösenordsåterställningslänkar genereras från random() med tidstämpel som seed; angriparen kan förutsäga nästa länk.
+
+Används föråldrade hashfunktioner som MD5 eller SHA‑1, eller används icke‑kryptografiska hashfunktioner där kryptografiska behövs?
+Exempel:
+    • Icke‑kryptografiska hashfunktioner (t.ex. MurmurHash, CRC32) är avsedda för snabb beräkning (t.ex. hashtabeller) och inte för säkerhet.
+    • Kryptografiska hashfunktioner (t.ex. SHA‑256, SHA‑3, BLAKE2; för lösenord: Argon2) är designade för att vara kollisionsresistenta, oförutsägbara och svåra att invertera.
+        ◦ (Kollisionsresistens: Det ska vara praktiskt omöjligt att hitta två olika indata som ger samma hashvärde.)
+        ◦ (Invertera: att återskapa ursprungsdata från hashvärdet.)
+
+Används föråldrade kryptografiska utfyllnadsmetoder (padding), såsom PKCS#1 v1.5?
+Konkret och praktisk beskrivning:
+Vid RSA krävs padding innan kryptering. PKCS#1 v1.5 var länge standard men är förutsägbar och sårbar för attacker som Bleichenbacher (1998). Angriparen skickar manipulerade krypterade meddelanden och kan, genom att analysera svaren, stegvis dekryptera känslig data (t.ex. nycklar eller sessioner).
+Lösning i dag:
+Använd RSA med OAEP (Optimal Asymmetric Encryption Padding) eller moderna algoritmer som elliptiska kurvor (ECC).
+
+Är kryptografiska felmeddelanden eller sidokanaler exploaterbara, t.ex. i form av padding oracle‑attacker?
+Praktiskt exempel:
+En angripare skickar manipulerade krypterade meddelanden till servern. Servern svarar olika beroende på om paddingen var ”rätt” eller ”fel” (t.ex. ”Felaktig padding” vs. ”Felaktigt lösenord”). Genom att upprepa detta tusentals gånger kan angriparen stegvis räkna ut det ursprungliga meddelandet utan att känna till nyckeln.
+Konsekvens:
+Lösenord, sessionstokens eller annan känslig data kan dekrypteras.
+
+Hur man förebygger
+Gör åtminstone följande och konsultera referenserna:
+    • Klassificera data som behandlas, lagras eller överförs. Identifiera vilken data som är känslig enligt lagkrav/regler eller verksamhetsbehov.
+    • Lagra inte känslig data i onödan. Kassera den så snart som möjligt, eller använd PCI DSS‑kompatibel tokenisering eller trunkering. Data som inte behålls kan inte stjälas.
+    • Kryptera all känslig data i vila (at rest).
+    • Använd uppdaterade och starka algoritmer, protokoll och nycklar; implementera korrekt nyckelhantering.
+    • Kryptera all data under överföring med säkra protokoll som TLS med forward secrecy (FS), serverstyrd chifferprioritering och säkra parametrar. Tvinga kryptering med HSTS.
+    • Inaktivera caching för svar som innehåller känslig data.
+    • Tillämpa säkerhetskontroller i enlighet med dataklassificeringen.
+    • Använd inte föråldrade protokoll (t.ex. FTP och SMTP) för transport av känslig data.
+    • Lagra lösenord med starka, adaptiva och saltade hashfunktioner med arbetsfaktor (t.ex. Argon2, scrypt, bcrypt, PBKDF2).
+    • Initialiseringsvektorer (IV) ska väljas utifrån driftläge. För många lägen krävs CSPRNG. För lägen som kräver en nonce behöver IV inte komma från CSPRNG men får aldrig återanvändas med samma nyckel.
+    • Använd alltid autentiserad kryptering i stället för enbart kryptering.
+    • Nycklar ska genereras kryptografiskt slumpmässigt och lagras i minnet som byte‑arrayer. Om ett lösenord används måste det omvandlas till en nyckel via en lösenordsbaserad nyckelderiveringsfunktion.
+    • Säkerställ kryptografiskt stark slumpmässighet där det är lämpligt och undvik förutsägbara seeds/låg entropi. De flesta moderna API:er kräver inte manuell seeding för säkerhet.
+    • Undvik föråldrade kryptografiska funktioner och paddingscheman, såsom MD5, SHA‑1 och PKCS#1 v1.5.
+    • Verifiera oberoende att konfigurationer och inställningar är korrekt och effektivt implementerade.
+
+
+List of Mapped CWEs
+CWE-259 Use of Hard-coded Password
+
+CWE-261 Weak Encoding for Password
+
+CWE-296 Improper Following of a Certificate's Chain of Trust
+
+CWE-310 Cryptographic Issues
+
+CWE-319 Cleartext Transmission of Sensitive Information
+
+CWE-321 Use of Hard-coded Cryptographic Key
+
+CWE-322 Key Exchange without Entity Authentication
+
+CWE-323 Reusing a Nonce, Key Pair in Encryption
+
+CWE-324 Use of a Key Past its Expiration Date
+
+CWE-325 Missing Required Cryptographic Step
+
+CWE-326 Inadequate Encryption Strength
+
+CWE-327 Use of a Broken or Risky Cryptographic Algorithm
+
+CWE-328 Reversible One-Way Hash
+
+CWE-329 Not Using a Random IV with CBC Mode
+
+CWE-330 Use of Insufficiently Random Values
+
+CWE-331 Insufficient Entropy
+
+CWE-335 Incorrect Usage of Seeds in Pseudo-Random Number Generator(PRNG)
+
+CWE-336 Same Seed in Pseudo-Random Number Generator (PRNG)
+
+CWE-337 Predictable Seed in Pseudo-Random Number Generator (PRNG)
+
+CWE-338 Use of Cryptographically Weak Pseudo-Random Number Generator(PRNG)
+
+CWE-340 Generation of Predictable Numbers or Identifiers
+
+CWE-347 Improper Verification of Cryptographic Signature
+
+CWE-523 Unprotected Transport of Credentials
+
+CWE-720 OWASP Top Ten 2007 Category A9 - Insecure Communications
+
+CWE-757 Selection of Less-Secure Algorithm During Negotiation('Algorithm Downgrade')
+
+CWE-759 Use of a One-Way Hash without a Salt
+
+CWE-760 Use of a One-Way Hash with a Predictable Salt
+
+CWE-780 Use of RSA Algorithm without OAEP
+
+CWE-818 Insufficient Transport Layer Protection
+
+CWE-916 Use of Password Hash With Insufficient Computational Effort
